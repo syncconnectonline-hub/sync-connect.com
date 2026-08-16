@@ -1,5 +1,7 @@
-import PublicBioPage from "@/app/bio/page";
+"use client";
+
+import { PublicBioView } from "@/components/bio/public-bio-view";
 
 export default function PBioPage() {
-  return <PublicBioPage />;
+  return <PublicBioView />;
 }

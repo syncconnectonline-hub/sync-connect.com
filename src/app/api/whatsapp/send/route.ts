@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { adminDb } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { phone, text, token, phoneNumberId } = body;
+    let { phone, text, token, phoneNumberId } = body;
 
     if (!phone || !text) {
       return NextResponse.json(
@@ -12,46 +13,64 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanPhone = phone.replace(/[^\d+]/g, "");
+    const cleanPhone = phone.replace(/[^\d]/g, "");
+    const waLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+
+    // Try to auto-resolve official Meta tokens from Firestore if not provided in payload
+    if ((!token || !phoneNumberId) && adminDb) {
+      try {
+        const snap = await adminDb.collection("site_config").doc("whatsapp-official").get();
+        if (snap.exists) {
+          const cfg = snap.data();
+          if (cfg?.accessToken) token = cfg.accessToken;
+          if (cfg?.phoneNumberId) phoneNumberId = cfg.phoneNumberId;
+        }
+      } catch (dbErr) {
+        console.warn("Could not load WhatsApp config from Firestore:", dbErr);
+      }
+    }
 
     // If official Meta WhatsApp Cloud API credentials are provided
     if (token && phoneNumberId) {
-      const waUrl = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
-      const res = await fetch(waUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: cleanPhone.replace("+", ""),
-          type: "text",
-          text: { preview_url: true, body: text },
-        }),
-      });
+      try {
+        const waUrl = `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`;
+        const res = await fetch(waUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: cleanPhone,
+            type: "text",
+            text: { preview_url: true, body: text },
+          }),
+        });
 
-      const data = await res.json();
+        const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(
-          data.error?.message || "Error al enviar mensaje vía WhatsApp Cloud API"
-        );
+        if (res.ok) {
+          return NextResponse.json({
+            success: true,
+            sentViaApi: true,
+            waData: data,
+            phone: cleanPhone,
+            waLink: waLink,
+          });
+        } else {
+          console.warn("WhatsApp Cloud API response:", data?.error?.message);
+        }
+      } catch (cloudErr) {
+        console.warn("WhatsApp Cloud API call error, falling back to Web link:", cloudErr);
       }
-
-      return NextResponse.json({
-        success: true,
-        waData: data,
-        phone: cleanPhone,
-      });
     }
 
-    // Default response for web WhatsApp integration
-    const waLink = `https://wa.me/${cleanPhone.replace("+", "")}?text=${encodeURIComponent(text)}`;
-
+    // Response with WhatsApp web / direct chat link
     return NextResponse.json({
       success: true,
+      sentViaApi: false,
       message: "Mensaje listo para envío por WhatsApp CRM",
       phone: cleanPhone,
       waLink: waLink,

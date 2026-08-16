@@ -12,24 +12,13 @@ import {
 export async function loginWithGoogle(auth: Auth): Promise<UserCredential> {
   await setPersistence(auth, browserLocalPersistence);
   const provider = new GoogleAuthProvider();
+  // Standard non-restricted scopes for Firebase Auth Google Sign-In
   provider.addScope('email');
   provider.addScope('profile');
-  provider.addScope('https://www.googleapis.com/auth/userinfo.email');
-  provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
-  provider.addScope('https://www.googleapis.com/auth/gmail.send');
-  provider.addScope('https://www.googleapis.com/auth/gmail.compose');
-  provider.addScope('https://www.googleapis.com/auth/gmail.modify');
   provider.setCustomParameters({
-    prompt: 'consent',
-    access_type: 'offline'
+    prompt: 'select_account'
   });
-  const result = await signInWithPopup(auth, provider);
-  const credential = GoogleAuthProvider.credentialFromResult(result);
-  const accessToken = credential?.accessToken;
-  if (accessToken && typeof window !== 'undefined') {
-    localStorage.setItem('google_gmail_access_token', accessToken);
-  }
-  return result;
+  return await signInWithPopup(auth, provider);
 }
 
 export async function requestGmailPermission(auth: Auth) {
@@ -39,6 +28,8 @@ export async function requestGmailPermission(auth: Auth) {
   provider.addScope('profile');
   provider.addScope('https://www.googleapis.com/auth/userinfo.email');
   provider.addScope('https://www.googleapis.com/auth/gmail.send');
+  provider.addScope('https://www.googleapis.com/auth/gmail.compose');
+  provider.addScope('https://www.googleapis.com/auth/gmail.readonly');
   provider.setCustomParameters({
     prompt: 'consent',
     access_type: 'offline'

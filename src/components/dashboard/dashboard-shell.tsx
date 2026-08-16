@@ -201,7 +201,7 @@ export function DashboardShell({ children, role }: DashboardShellProps) {
   };
 
   useEffect(() => {
-    if (!mounted || !db || !user) return;
+    if (!mounted || !db || !user?.uid) return;
     const collectionName = role === 'buyer' ? 'buyers' : 'affiliates';
     const userRef = doc(db, collectionName, user.uid);
     const unsub = onSnapshot(userRef, (snap) => {
@@ -210,7 +210,7 @@ export function DashboardShell({ children, role }: DashboardShellProps) {
       }
     });
     return () => unsub();
-  }, [mounted, db, user?.uid, role]);
+  }, [mounted, db, user, role]);
 
   const [adminSettings, setAdminSettings] = useState<{ emails: string[], phones: string[] }>({ emails: [], phones: [] });
 
@@ -291,7 +291,7 @@ export function DashboardShell({ children, role }: DashboardShellProps) {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [user?.uid, isUserLoading, mounted, isUserAdmin, role, db]);
+  }, [user, isUserLoading, mounted, isUserAdmin, role, db, router]);
 
   const logoConfigRef = useMemoFirebase(() => db ? doc(db, 'site_config', 'site-logo') : null, [db]);
   const { data: logoOverride } = useDoc(logoConfigRef);
@@ -354,7 +354,6 @@ export function DashboardShell({ children, role }: DashboardShellProps) {
     { title: "Redes & Bio-Link", url: "/dashboard/admin/social-bio", icon: Share2 },
     { title: "Campañas Gmail", url: "/dashboard/affiliate/email-campaigns", icon: Mail },
     { title: "Bot de Ventas", url: "/dashboard/ai-sales-copilot", icon: Bot },
-    { title: "Generador de Páginas", url: "/dashboard/ai-page-generator", icon: LayoutTemplate },
     { title: "Academia Cursos", url: "/dashboard/admin/academy", icon: GraduationCap },
     { title: "Reuniones", url: "/dashboard/meeting", icon: Video },
     { title: "Afiliados", url: "/dashboard/admin/affiliates", icon: Users },
@@ -377,8 +376,6 @@ export function DashboardShell({ children, role }: DashboardShellProps) {
     { title: "Estado de Cuenta", url: "/dashboard/affiliate/statement", icon: Wallet },
     { title: "Campañas Gmail", url: "/dashboard/affiliate/email-campaigns", icon: Mail, proOnly: true },
     { title: "Bot de Ventas", url: "/dashboard/ai-sales-copilot", icon: Bot, proOnly: true },
-    { title: "Constructor de Sitios", url: "/dashboard/affiliate/site-builder", icon: Globe, proOnly: true },
-    { title: "Generador de Páginas", url: "/dashboard/ai-page-generator", icon: LayoutTemplate, proOnly: true },
     { title: "Academia VIP", url: "/dashboard/affiliate/academy", icon: GraduationCap, proOnly: true },
     { title: "Mi Negocio 360", url: "/dashboard/affiliate/business", icon: Building2, proOnly: true },
     { title: "Reuniones", url: "/dashboard/meeting", icon: Video },
